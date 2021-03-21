@@ -1,3 +1,4 @@
+import bcrypt, secrets
 from django.db import models
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
@@ -33,10 +34,43 @@ class Validator(models.Manager):
             errors['c_password'] = "Passwords must match"
         
         return errors 
-    def un_login_validator(self, postData) :
+    
+    def authenticate(self, email, password):
+        users = self.filter(email = email)
+        if not users:
+            return False
+        
+        user = users[0]
+        return bcrypt.checkpw(password.encode(), user.password.encode())
+    
+    def register(self, form):
+        pw = bcrypt.hashpw(form['password'].encode(), bcrypt.gensalt()).decode()
+
+        return self.create(
+            email = form['email'],
+            first_name = form["first"],
+            last_name = form["last"],
+            dob = form["dob"],
+            password = pw,
+            user_id = secrets.token_hex(20)
+
+        )
+
+class message_validator(models.Manager):
+    def message_validator(self, postData) :
         errors = {}
-        errors['uns'] = "Unsuccessful login. Did not recognize username and/or Password."
+        if len (postData['message']) <3:
+            errors['mess'] = "Messages must have at least 3 Characters"
         return errors
+
+class comment_validator(models.Manager):
+    def comment_validator(self, postData) :
+        errors = {}
+        if len (postData['comment']) <3:
+            errors['comm'] = "Comments must have at least 3 Characters"
+        return errors
+
+
 
         
 
@@ -51,5 +85,25 @@ class User(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     objects = Validator()
+
+class Message(models.Model):
+    user_id = models.ForeignKey(User, related_name= 'messages', on_delete=models.CASCADE)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    objects = message_validator()
+
+
+class Comment(models.Model):
+    user_id = models.ForeignKey(User, related_name= 'comments', on_delete=models.CASCADE)
+    message_id = models.ForeignKey(Message, related_name= 'comments', on_delete=models.CASCADE)
+    comment = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    objects = comment_validator()
+
+
+
+
 
 

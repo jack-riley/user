@@ -1,6 +1,6 @@
 from django.shortcuts import redirect, redirect, render
 import bcrypt, secrets
-from .models import User
+from .models import User, Message, Comment
 from django.contrib import messages
 
 # Create your views here.
@@ -10,11 +10,28 @@ def index(request):
     if not 'user' in request.session:
         request.session['user'] = ''
     
+    user = User.objects.filter(user_id = request.session['user'])
+    
+    if user:
+        return redirect('/wall')
+    
     else:
         request.session['user'] = ''
     return render (request, 'login.html')
 
+def error(request):
+
+    if not 'user' in request.session:
+        request.session['user'] = ''
+    
+    else:
+        request.session['user'] = ''
+    return render (request, 'error.html')
+
 def register(request):
+    if request.method == "GET":
+        return redirect('/')
+    
     errors = User.objects.validator(request.POST)
 
     if len(errors) > 0:
@@ -22,43 +39,60 @@ def register(request):
             messages.error(request, value)
         return redirect('/')
     else:
-        first = request.POST["first"]
-        last = request.POST["last"]
-        email = request.POST["email"]
-        dob = request.POST["dob"]
-        password = request.POST["password"]
-        user_id = secrets.token_hex(20)
-        pw_hash = bcrypt.hashpw(password.encode(),bcrypt.gensalt()).decode()  
-        User.objects.create(first_name = first, last_name = last, dob = dob, email = email, user_id = user_id,  password = pw_hash)
-        request.session["user"] = user_id
-        return redirect ('/success')
+        new_user = User.objects.register(request.POST)
+        request.session["user"] = new_user.user_id
+        messages.success(request, "You have successfully registered!")
+        return redirect ('/wall')
 
 def login(request):
-    if request.method == ["POST"]:
-        user = User.objects.filter(email=request.POST["email2"])
-        if user:
-            logged_user = user[0]
-            if bcrypt.checkpw(request.POST['password2'].encode(), logged_user.encode()):
-                request.session["user"] = logged_user.user_id
-            else:
-                errors = User.objects.un_login_validator(request.POST)
-                errors['invalid'] = "Email or Password Incorrect"
-                for key, value in errors.items():
-                    messages.error(request, value)
-                return errors, redirect ('/')
-        else:
-            errors = User.objects.un_login_validator(request.POST)
-            for key, value in errors.items():
-                messages.error(request, value)
-            return errors, redirect ('/')
-
-    return redirect ('/success')
+    if request.method == "GET":
+        return redirect('/')
+    
+    if not User.objects.authenticate(request.POST['email2'], request.POST['password2']):
+        messages.error(request, 'Invalid Email/Password')
+        return redirect('/')
+    user = User.objects.get(email=request.POST['email2'])
+    request.session['user'] = user.user_id
+    messages.success(request, "You have successfully logged in!")
+    return redirect('/wall')
         
 
-def success(request):
+def wall(request):
     check = User.objects.filter(user_id = request.session["user"])
     if check:
-        context = {"current_user": User.objects.get(user_id = request.session["user"]) }
-        return render(request, 'success.html', context)
+        context = {"message": Message.objects.all(),
+        "current_user" : check[0]}
+        return render(request, 'wall.html', context)
     else:
         return redirect ('/')
+
+def process_message(request):
+    errors = Message.objects.message_validator(request.POST)
+    if len(errors) > 0:
+        for key, value in errors.items():
+            messages.error(request, value)
+        return redirect('/wall')
+    else:
+        mess = request.POST['message']
+        Message.objects.create(message = mess, user_id = User.objects.get(user_id = request.session["user"] ))
+        return redirect('/wall')
+
+def process_comment(request):
+    errors = Comment.objects.comment_validator(request.POST)
+    if len(errors) > 0:
+        for key, value in errors.items():
+            messages.error(request, value)
+        return redirect('/wall')
+    else:
+        comm = request.POST['comment']
+        mess_id = request.POST['mess_id']
+        Comment.objects.create(comment = comm, message_id = Message.objects.get(id = mess_id), user_id = User.objects.get(user_id = request.session["user"] ))
+        return redirect('/wall')
+
+def logout(request):
+    request.session.flush()
+    messages.success(request, "You have successfully logged out")
+
+    return redirect("/")
+
+    

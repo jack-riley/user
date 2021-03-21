@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" 
+    integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <title>Login or Register</title>
+</head>
+
+<body>
+    <div class="container">
+        
+        <div class="row ">
+            <div class = "col-md-6 bg-primary text-white">
+                <h3>Coding Dojo Wall</h3>
+            </div>
+            <div class="row align-items-end">
+                <div class = "col-md-4 bg-primary text-white" style="height: 56.4px;">
+                    <h6>Logged in as {{current_user.first_name}} {{current_user.last_name}}</h6>
+                </div>
+            <div class = "col-md-2 bg-primary px-3" style="height: 56.4px;">
+                <a href="/logout"> <button class="btn btn-primary mt-4">Log out</button></a>
+
+            </div>
+
+        </div>
+
+        <div class="row">
+            <div class = "col-md-4">
+                <h3>Write a Message</h3>
+            </div>
+            <div class="col-md-6"></div>
+
+        </div>
+        {% if messages %}
+        <ul class="messages">    
+            {% for message in messages %}    
+                <li {% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>    
+            {% endfor %}
+        </ul>
+        {% endif %}
+        <div class="row">
+            <div clas = "col-md-6">
+                <form action="/process_message" method="POST">
+                    {% csrf_token %}
+                    <textarea  name="message" class ="form-control"  cols="35" rows="10"></textarea>
+                    <button  type="submit" class="btn btn-primary"> Submit</button>
+                </form>
+            </div>
+        </div>
+      
+        <div class="row">
+            <div clas = "col">
+                <div  class="border-secondary">
+                {% for message in message reversed%}
+                <p class="border-secondary">{{message.message}}</p>
+                <p class= "text-muted">{{message.user_id.first_name}} {{message.user_id.last_name}} {{message.created_at}}</p>
+                </div >
+                {% for comment in message.comments.all %}
+                <div style="margin-left: 50px;" class="border-secondary">
+                <p>{{comment.comment}}</p>
+                <p class= "text-muted">{{comment.user_id.first_name}} {{comment.user_id.last_name}} {{comment.created_at}}</p>
+
+                </div>
+                {% endfor %}
+                <ps style="margin-left: 50px;">Make a Comment</p>
+                <form style="margin-left: 50px;" action="/process_comment" method="POST">
+                    {% csrf_token %}
+                    <textarea name="comment" cols="35" rows="2"></textarea>
+                    <input type="hidden" name="mess_id" value="{{message.id}}">
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </form>
+                
+                {% endfor %}
+            </div>
+        </div>
+
+
+        
+    </div>
+</body>
